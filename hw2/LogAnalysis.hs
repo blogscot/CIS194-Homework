@@ -19,10 +19,11 @@ parseMessage str = case messageType of
 parse :: String -> [LogMessage]
 parse = map parseMessage . lines
 
+-- TODO: fix this orphan instance
 instance Ord LogMessage where
   (LogMessage _ ts1 _) `compare` (LogMessage _ ts2 _) = ts1 `compare` ts2
-  (LogMessage _ _ _) `compare` (Unknown _) = GT
-  (Unknown _)  `compare` (LogMessage _ _ _) = LT
+  LogMessage{} `compare` (Unknown _) = GT
+  (Unknown _)  `compare` LogMessage{} = LT
   (Unknown str1) `compare` (Unknown str2) = str1 `compare` str2
 
 insert :: LogMessage -> MessageTree -> MessageTree
@@ -34,22 +35,55 @@ insert message (Node left message' right)
   | otherwise = Node left message right
 
 build :: [LogMessage] -> MessageTree
-build = foldl' (\tree message -> insert message tree) emptyTree
-  where emptyTree = Leaf
+build = foldl' (flip insert) Leaf
 
+inOrder :: MessageTree -> [LogMessage]
+inOrder Leaf = []
+inOrder (Node l m r) = inOrder l ++ [m] ++ inOrder r
 
-main = testBuild
+whatWentWrong :: [LogMessage] -> [String]
+whatWentWrong messages = map extract $ filter (minSeverity 50) msgs
+  where msgs = inOrder $ build messages
 
+minSeverity :: Int -> LogMessage -> Bool
+minSeverity minlvl (LogMessage (Error lvl) _ _)
+  | lvl >= minlvl = True
+  | otherwise = False
+minSeverity _ _ = False
+
+extract :: LogMessage -> String
+extract message = case message of
+                  LogMessage (Error _) _ str -> str
+                  _ -> ""
+
+-- A few tests that came in handy
+
+main :: IO ()
+main = testWWW
+
+testWWW :: IO ()
+testWWW = do
+  result <- testWhatWentWrong parse whatWentWrong "sample.log"
+  print result
+
+testSortedList :: IO ()
+testSortedList = do
+  tree <- testParse parse 11 "error.log"
+  let sorted = inOrder $ build tree
+  print sorted
+
+testBuild :: IO ()
 testBuild = do
   messages <- testParse parse 10 "error.log"
   let tree1 = build messages
   print tree1
 
+testInsert :: IO ()
 testInsert = do
   let tree1 = Leaf
       message1 = parseMessage "I 29 la la la"
       message2 = parseMessage "E 2 562 help help"
-      message3 = parseMessage "This is not in the right format"
+      -- message3 = parseMessage "This is not in the right format"
       message4 = parseMessage "I 29 yo yo yo"
       tree2 = insert message1 tree1
       tree3 = insert message2 tree2
@@ -58,6 +92,7 @@ testInsert = do
   print tree3
   print tree4
 
+testOrd :: IO ()
 testOrd = do
   let message1 = parseMessage "E 2 562 help help"
       message2 = parseMessage "I 29 la la la"
