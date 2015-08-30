@@ -1,17 +1,26 @@
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+
 module Calc where
 
-import ExprT
+import ExprT as E
 import Parser
+import StackVM
 import Control.Monad
 
+-- Exercise 1
+
 eval :: ExprT -> Integer
-eval (Add x y) = eval x + eval y
-eval (Mul x y) = eval x * eval y
+eval (E.Add x y) = eval x + eval y
+eval (E.Mul x y) = eval x * eval y
 eval (Lit x) = x
 
 
+-- Exercise 2
+
 evalStr :: String -> Maybe Integer
-evalStr = liftM eval . parseExp Lit Add Mul
+evalStr = liftM eval . parseExp Lit E.Add E.Mul
+
+-- Exercise 3
 
 class Expr a where
   lit :: Integer -> a
@@ -20,8 +29,10 @@ class Expr a where
 
 instance Expr ExprT where
   lit = Lit
-  add = Add
-  mul = Mul
+  add = E.Add
+  mul = E.Mul
+
+-- Exercise 4
 
 instance Expr Integer where
   lit = id
@@ -48,8 +59,28 @@ instance Expr Mod7 where
   add x y = lit $ runMod7 x + runMod7 y
   mul x y = lit $ runMod7 x * runMod7 y
 
+-- Exercise 5
 
-main = testExprs
+instance Expr Program where
+  lit x = [PushI x]
+  add x y = x ++ y ++ [StackVM.Add]
+  mul x y = x ++ y ++ [StackVM.Mul]
+
+
+compile :: String -> Maybe Program
+compile = parseExp lit add mul
+
+
+main = do
+  print $ compile "8+7"
+  let prog = compile "8+7"
+  print $ liftM stackVM prog
+  -- print $ stackVM program101
+
+-- Tests
+
+program101 :: Program
+program101 = [PushI 8, PushI 7, StackVM.Add]
 
 testExprs = do
   print testInteger
@@ -86,7 +117,7 @@ testEvalStr = do
   print $ evalStr "2+3*4+"
 
 testEval = do
-  print $ eval $ Add (Lit 2) (Lit 3)
-  print $ eval $ Mul (Lit 2) (Lit 3)
-  print $ eval (Mul (Add (Lit 2) (Lit 3)) (Lit 4))
-  print $ eval (Mul (Mul (Lit 2) (Lit 3)) (Lit 4))
+  print $ eval $ E.Add (Lit 2) (Lit 3)
+  print $ eval $ E.Mul (Lit 2) (Lit 3)
+  print $ eval (E.Mul (E.Add (Lit 2) (Lit 3)) (Lit 4))
+  print $ eval (E.Mul (E.Mul (Lit 2) (Lit 3)) (Lit 4))
