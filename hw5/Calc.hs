@@ -3,6 +3,7 @@
 module Calc where
 
 import ExprT as E
+import Data.Maybe
 import Parser
 import StackVM
 import Control.Monad
@@ -70,14 +71,20 @@ instance Expr Program where
 compile :: String -> Maybe Program
 compile = parseExp lit add mul
 
+eval' :: String -> Either String StackVal
+eval' = stackVM . fromMaybe [] . compile
 
-main = do
-  print $ compile "8+7"
-  let prog = compile "8+7"
-  print $ liftM stackVM prog
-  -- print $ stackVM program101
+main = testEval'
 
 -- Tests
+
+testEval' = do
+  print $ compile "8+7"
+  print $ stackVM program101
+  let prog = compile "8+7"
+  print $ liftM stackVM prog
+  print $ eval' "(3 * -4) + 5"
+  print $ eval' "(3 * -4) +"
 
 program101 :: Program
 program101 = [PushI 8, PushI 7, StackVM.Add]
