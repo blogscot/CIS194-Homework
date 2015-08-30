@@ -2,17 +2,16 @@ module Calc where
 
 import ExprT
 import Parser
+import Control.Monad
 
-eval :: ExprT -> Int
+eval :: ExprT -> Integer
 eval (Add x y) = eval x + eval y
 eval (Mul x y) = eval x * eval y
-eval (Lit x) = fromInteger x :: Int
+eval (Lit x) = x
 
 
 evalStr :: String -> Maybe Integer
-evalStr str = case parseExp Lit Add Mul str of
-              Just x -> Just . toInteger $ eval x
-              Nothing -> Nothing
+evalStr = liftM eval . parseExp Lit Add Mul
 
 class Expr a where
   lit :: Integer -> a
@@ -25,16 +24,16 @@ instance Expr ExprT where
   mul = Mul
 
 instance Expr Integer where
-  lit x = x
-  add x y = x + y
-  mul x y = x * y
+  lit = id
+  add = (+)
+  mul = (*)
 
 instance Expr Bool where
   lit x
     | x <= 0 = False
     | otherwise = True
-  add x y = x || y
-  mul x y = x && y
+  add = (||)
+  mul = (&&)
 
 newtype MinMax = MinMax Integer deriving (Eq, Ord, Show)
 newtype Mod7 = Mod7 {runMod7 :: Integer} deriving (Eq, Show)
