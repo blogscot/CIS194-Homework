@@ -46,12 +46,27 @@ nats = streamFromSeed (+1) (-1)
 interleaveStreams :: Stream a -> Stream a -> Stream a
 interleaveStreams (Cons x xs) (Cons y ys) = Cons x (Cons y (interleaveStreams xs ys))
 
--- ruler :: Stream Integer
+divByPower2 :: Integer -> Integer
+divByPower2 n = f n 0
+  where f num count
+          | num <= 0 = 0 -- prevent infinite loops
+          | even num = f (num `div` 2) (succ count)
+          | otherwise = count
 
--- 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17
--- 0 1 0 2 0 1 0 3 0 1  0  2  0  1  0  4  0
+ruler :: Stream Integer
+ruler = streamMap divByPower2 $ streamFromSeed (+1) 0
 
-main = print $ interleaveStreams nats $ streamRepeat 0
+
+main = print ruler
+
+-- tests
+
+testDivByPower2 = do
+  print $ divByPower2 2
+  print $ divByPower2 4
+  print $ map divByPower2 [1..20]
+
+testInterleaveStreams = print $ interleaveStreams nats $ streamRepeat 0
 
 testStreamFromSeed = do
   print $ streamFromSeed (*4) 4
