@@ -17,8 +17,10 @@ jlToList (Append _ l1 l2) = jlToList l1 ++ jlToList l2
 -- Exercise 1
 
 (+++) :: Monoid m => JoinList m a -> JoinList m a -> JoinList m a
-(+++) l1 l2 = Append p l1 l2
-  where p = tag l1 `mappend` tag l2
+(+++) Empty jl2 = jl2
+(+++) jl1 Empty = jl1
+(+++) jl1 jl2 = Append p jl1 jl2
+  where p = tag jl1 `mappend` tag jl2
 
 tag :: Monoid m => JoinList m a -> m
 tag Empty = mempty
@@ -29,46 +31,57 @@ tag (Append x _ _) = x
 
 indexJ :: (Sized b, Monoid b) => Int -> JoinList b a -> Maybe a
 indexJ _ Empty = Nothing
-indexJ n l
-  | n < 0 || n >= len = Nothing
-  | otherwise = Just $ lst !! n
-  where lst = jlToList l
-        len = length lst
+indexJ n (Single _ jl)
+  | n == 0 = Just jl
+  | otherwise = Nothing
+indexJ n (Append s jl1 jl2)
+  | n < 0 || n >= s' = Nothing
+  | n < size1 = indexJ n jl1
+  | otherwise = indexJ (n - size1) jl2
+    where s' = getSize $ size s
+          size1 = getSize . size $ tag jl1
+
 
 -- Exercise 3
 
 dropJ :: (Sized b, Monoid b) => Int -> JoinList b a -> JoinList b a
-dropJ n jl
-  | n <= 0 = jl
-dropJ _ (Single _ _) = Empty
-dropJ n (Append s jl1 jl2)
-  | n >= 2 = dropJ (n-2) jl2
-  | otherwise = dropOne (Append s jl1 jl2)
+dropJ _ Empty = Empty
+dropJ n jl@(Single _ _)
+  | n > 0 = Empty
+  | otherwise = jl
+dropJ n jl@(Append s jl1 jl2)
+  | n < 0 = jl
+  | n < size1 = dropJ n jl1 +++ jl2  -- note, this recomputes size
+  | n < s' = dropJ (n - size1) jl2
+  | otherwise = Empty
+  where s' = getSize $ size s
+        size1 = getSize . size $ tag jl1
 
-dropOne :: (Sized b, Monoid b) => JoinList b a -> JoinList b a
-dropOne Empty = Empty
-dropOne (Single _ _ ) = Empty
-dropOne (Append _ (Single size l1) jl2) = jl2
-dropOne (Append _ (Append _ _ j2) jl2) = Append (newSize j2) j2 jl2
-    where newSize j = tag j `mappend` tag jl2
+
+takeJ :: (Sized b, Monoid b) => Int -> JoinList b a -> JoinList b a
+takeJ n jl = undefined
+
+
 
 main = testDropJ
 
 testDropJ = do
-  let l1 = Append (Size 3) (Single (Size 4) 'a') (Single (Size 5) 'b')
-  let l2 = Append (Size 6) (Single (Size 7) 'c') (Single (Size 8) 'd')
+  let l1 = Append (Size 2) (Single (Size 1) 'a') (Single (Size 1) 'b')
+      l2 = Append (Size 3) (Append (Size 2) (Single (Size 1) 'e') (Single (Size 1) 'f')) (Single (Size 1) 'g')
   print $ l1 +++ l2
   print $ dropJ 1 $ l1 +++ l2
   print $ dropJ 2 $ l1 +++ l2
   print $ dropJ 3 $ l1 +++ l2
-  print $ dropJ 1 l2
-
+  print $ dropJ 4 $ l1 +++ l2
 
 testIndexJ = do
-  let l1 = Single (Size 6) 'c'
-  let l2 = Append (Size 3) (Single (Size 4) 'a') (Single (Size 5) 'b')
+  let l1 = Single (Size 1) 'c'
+      l2 = Append (Size 2) (Single (Size 1) 'a') (Single (Size 1) 'b')
+      l3 = Append (Size 3) (Append (Size 2) (Single (Size 1) 'e') (Single (Size 1) 'f')) (Single (Size 1) 'g')
   print $ indexJ 0 l1
   print $ indexJ 1 l2
+  print $ indexJ 3 $ l2 +++ l3
+  print $ getSize . tag $ l2 +++ l3
   print $ indexJ 1 (Empty :: JoinList Size Int)
 
 testAppend2 = do
@@ -79,7 +92,9 @@ testAppend2 = do
 testAppend = do
   let l1 = Append (Product 3) (Single (Product 4) 'a') (Single (Product 5) 'b')
       l2 = Single (Product 6) 'c'
+      l3 = Empty
   print $ l1 +++ l2
+  print $ l3 +++ l2
 
 testTag = do
   let l1 = Append (Product 3) (Single (Product 4) 'a') (Single (Product 5) 'b')
