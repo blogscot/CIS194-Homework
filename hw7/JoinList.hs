@@ -41,9 +41,6 @@ indexJ n (Append s jl1 jl2)
     where s' = getSize $ size s
           size1 = getSize . size $ tag jl1
 
-
--- Exercise 3
-
 dropJ :: (Sized b, Monoid b) => Int -> JoinList b a -> JoinList b a
 dropJ _ Empty = Empty
 dropJ n jl@(Single _ _)
@@ -57,22 +54,44 @@ dropJ n jl@(Append s jl1 jl2)
   where s' = getSize $ size s
         size1 = getSize . size $ tag jl1
 
-
 takeJ :: (Sized b, Monoid b) => Int -> JoinList b a -> JoinList b a
-takeJ n jl = undefined
+takeJ _ Empty = Empty
+takeJ n jl@(Single _ _)
+  | n > 0 = jl
+  | otherwise = Empty
+takeJ n jl@(Append s jl1 jl2)
+  | n <= 0 = jl
+  | n <= size1 = takeJ n jl1
+  | n <= s' = jl1 +++ takeJ (n - size1) jl2
+  | otherwise = Empty
+  where s' = getSize $ size s
+        size1 = getSize . size $ tag jl1
 
 
+main = do
+  testDropJ
+  testTakeJ
 
-main = testDropJ
+l1, l2 :: JoinList Size Char
+l1 = Append (Size 2) (Single (Size 1) 'a') (Single (Size 1) 'b')
+l2 = Append (Size 3) (Append (Size 2) (Single (Size 1) 'c') (Single (Size 1) 'd')) (Single (Size 1) 'e')
+
+testTakeJ = do
+  print $ l1 +++ l2
+  print $ takeJ 1 $ l1 +++ l2
+  print $ takeJ 2 $ l1 +++ l2
+  print $ takeJ 3 $ l1 +++ l2
+  print $ takeJ 4 $ l1 +++ l2
+  print $ takeJ 5 $ l1 +++ l2
+  print $ takeJ 6 $ l1 +++ l2
 
 testDropJ = do
-  let l1 = Append (Size 2) (Single (Size 1) 'a') (Single (Size 1) 'b')
-      l2 = Append (Size 3) (Append (Size 2) (Single (Size 1) 'e') (Single (Size 1) 'f')) (Single (Size 1) 'g')
   print $ l1 +++ l2
   print $ dropJ 1 $ l1 +++ l2
   print $ dropJ 2 $ l1 +++ l2
   print $ dropJ 3 $ l1 +++ l2
   print $ dropJ 4 $ l1 +++ l2
+  print $ dropJ 5 $ l1 +++ l2
 
 testIndexJ = do
   let l1 = Single (Size 1) 'c'
