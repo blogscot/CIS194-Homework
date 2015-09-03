@@ -2,6 +2,8 @@
 
 import Data.Monoid
 
+import Buffer
+import Editor
 import Scrabble
 import Sized
 
@@ -74,9 +76,45 @@ takeJ n jl@(Append s jl1 jl2)
 scoreLine :: String -> JoinList Score String
 scoreLine str = Single (scoreString str) str
 
-main = testScoreLine
+
+instance Buffer (JoinList (Score, Size) String) where
+  toString Empty = ""
+  toString (Single _ str) = str
+  toString (Append _ jl1 jl2) = toString jl1 ++ toString jl2
+
+  fromString = foldl (\jl str -> jl +++ scoreLine' str) Empty . lines
+    where scoreLine' str = Single (scoreString str, 1) str
+
+  line = indexJ
+  replaceLine n str jl =  start +++ fromString str +++ end
+    where start = takeJ (n-1) jl
+          end = dropJ n jl
+
+  numLines = getSize . snd . tag
+  value = getScore . fst . tag
 
 -- tests
+
+buf :: [String]
+buf = [ "This buffer is for notes you don't want to save, and for"
+       , "evaluation of steam valve coefficients."
+       , "To load a different file, type the character L followed"
+       , "by the name of the file."]
+
+buf' :: JoinList (Score, Size) String
+buf' = fromString $ unlines buf
+
+
+main = testEditor
+
+testBuffer = do
+  print buf'
+  print $ value buf'
+  print $ replaceLine 1 "This is not a pipe." buf'
+  print $ toString $ replaceLine 1 "This is not a pipe." buf'
+  print $ numLines buf'
+
+testEditor = runEditor editor buf'
 
 testScoreLine = print $ scoreLine "yay " +++ scoreLine "haskell!"
 
